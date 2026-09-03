@@ -1,0 +1,15 @@
+{
+	"luci-app-ddns-web": {
+		"description": "DDNS LuCI service controls",
+		"read": {
+			"ubus": {
+				"service": [ "list" ]
+			}
+		},
+		"write": {
+			"ubus": {
+				"luci.ddns_web": [ "start", "stop", "restart" ]
+			}
+		}
+	}
+}

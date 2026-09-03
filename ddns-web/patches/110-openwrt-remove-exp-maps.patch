@@ -1,0 +1,65 @@
+--- a/pkg/provider/aliyun/aliyun.go	2026-09-03 10:11:49
++++ b/pkg/provider/aliyun/aliyun.go	2026-09-02 21:36:08
+@@ -9,8 +9,6 @@
+ 	"net/http"
+ 	"net/url"
+ 	"sort"
+-
+-	"golang.org/x/exp/maps"
+ )
+ 
+ // Create: 新增记录成功返回Record，Update: 无有效数据，Delete: 无有效数据，Get: 返回Record切片
+@@ -252,7 +250,7 @@
+ func (a *Aliyun) do(ctx context.Context, req *request) ([]byte, error) {
+ 	urlStr := "https://" + req.host + req.canonicalUri
+ 	q := url.Values{}
+-	keys := maps.Keys(req.queryParam)
++	keys := mapKeys(req.queryParam)
+ 	sort.Strings(keys)
+ 	for _, k := range keys {
+ 		v := req.queryParam[k]
+--- a/pkg/provider/aliyun/sign.go	2026-09-03 10:11:49
++++ b/pkg/provider/aliyun/sign.go	2026-09-02 21:35:45
+@@ -5,9 +5,6 @@
+ 	"crypto/sha256"
+ 	"encoding/hex"
+ 	"fmt"
+-
+-	"golang.org/x/exp/maps"
+-
+ 	"net/url"
+ 	"sort"
+ 	"strings"
+@@ -23,7 +20,7 @@
+ 	req.queryParam = newQueryParams
+ 	// 拼接规范请求串
+ 	canonicalQueryString := ""
+-	keys := maps.Keys(req.queryParam)
++	keys := mapKeys(req.queryParam)
+ 	sort.Strings(keys)
+ 	for _, k := range keys {
+ 		v := req.queryParam[k]
+@@ -42,7 +39,7 @@
+ 
+ 	canonicalHeaders := ""
+ 	signedHeaders := ""
+-	HeadersKeys := maps.Keys(req.headers)
++	HeadersKeys := mapKeys(req.headers)
+ 	sort.Strings(HeadersKeys)
+ 	for _, k := range HeadersKeys {
+ 		lowerKey := strings.ToLower(k)
+@@ -72,6 +69,14 @@
+ 	return nil
+ }
+ 
++func mapKeys[K comparable, V any](values map[K]V) []K {
++	keys := make([]K, 0, len(values))
++	for key := range values {
++		keys = append(keys, key)
++	}
++	return keys
++}
++
+ func hmac256(key []byte, toSignString string) ([]byte, error) {
+ 	// 实例化HMAC-SHA256哈希
+ 	h := hmac.New(sha256.New, key)

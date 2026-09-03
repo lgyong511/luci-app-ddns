@@ -1,0 +1,221 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Validate release metadata
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      package_version: ${{ steps.version.outputs.package_version }}
+      package_release: ${{ steps.version.outputs.package_release }}
+      source_version: ${{ steps.version.outputs.source_version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: version
+        name: Validate tag and package version
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          package_version="$(sed -n 's/^PKG_VERSION:=//p' ddns-web/Makefile)"
+          package_release="$(sed -n 's/^PKG_RELEASE:=//p' ddns-web/Makefile)"
+          source_version="$(sed -n 's/^PKG_SOURCE_VERSION:=//p' ddns-web/Makefile)"
+          expected_tag="v${package_version}-${package_release}"
+
+          test -n "$package_version"
+          test -n "$package_release"
+          test -n "$source_version"
+
+          if [ "$TAG" != "$expected_tag" ]; then
+            echo "Release tag must be ${expected_tag}, got ${TAG}" >&2
+            exit 1
+          fi
+
+          {
+            echo "tag=$TAG"
+            echo "package_version=$package_version"
+            echo "package_release=$package_release"
+            echo "source_version=$source_version"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create source archive and release notes
+        shell: bash
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          PACKAGE_VERSION: ${{ steps.version.outputs.package_version }}
+          PACKAGE_RELEASE: ${{ steps.version.outputs.package_release }}
+          SOURCE_VERSION: ${{ steps.version.outputs.source_version }}
+        run: |
+          set -euo pipefail
+          mkdir release
+          archive="luci-app-ddns-${TAG}.tar.gz"
+          git archive --format=tar.gz --prefix="luci-app-ddns-${TAG}/" --output="release/${archive}" "$GITHUB_SHA"
+
+          cat > release/RELEASE-NOTES.md <<EOF
+          ## 版本信息
+
+          - 软件包版本：`${PACKAGE_VERSION}-${PACKAGE_RELEASE}`
+          - 上游 DDNS 提交：`${SOURCE_VERSION}`
+          - 预编译 SDK：ImmortalWrt 24.10.2
+          - 预编译目标：x86/64、armsr/armv8（ARM64）
+
+          ## 安装预编译 IPK
+
+          下载与设备目标匹配的两个 IPK：`ddns-web` 与 `luci-app-ddns-web`，上传到路由器后执行：
+
+          ```sh
+          opkg install /tmp/*ddns*.ipk
+          ```
+
+          ## 从源码编译
+
+          下载 `${archive}`，解压后将目录放入 ImmortalWrt 源码树的 `package/` 下；随后在 `make menuconfig` 中选择 `LuCI -> Applications -> luci-app-ddns-web` 并编译。
+          EOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-source
+          path: release/
+          if-no-files-found: error
+
+  build-ipk:
+    name: Build ${{ matrix.label }} IPK
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: x86-64
+            target: x86/64
+            sdk_url: https://downloads.immortalwrt.org/releases/24.10.2/targets/x86/64/immortalwrt-sdk-24.10.2-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          - label: armsr-armv8
+            target: armsr/armv8
+            sdk_url: https://downloads.immortalwrt.org/releases/24.10.2/targets/armsr/armv8/immortalwrt-sdk-24.10.2-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download and verify ImmortalWrt SDK
+        id: sdk
+        shell: bash
+        env:
+          SDK_URL: ${{ matrix.sdk_url }}
+        run: |
+          set -euo pipefail
+          sdk_archive="${SDK_URL##*/}"
+          sdk_base_url="${SDK_URL%/*}"
+          work_dir="$RUNNER_TEMP/immortalwrt-sdk"
+
+          mkdir -p "$work_dir"
+          curl --fail --location --retry 3 --output "$work_dir/$sdk_archive" "$SDK_URL"
+          curl --fail --location --retry 3 --output "$work_dir/sha256sums" "$sdk_base_url/sha256sums"
+          grep -F " *${sdk_archive}" "$work_dir/sha256sums" > "$work_dir/sdk.sha256"
+          (cd "$work_dir" && sha256sum --check sdk.sha256)
+          tar --zstd --extract --file "$work_dir/$sdk_archive" --directory "$work_dir"
+
+          sdk_dir="$(find "$work_dir" -maxdepth 1 -type d -name 'immortalwrt-sdk-*' -print -quit)"
+          test -n "$sdk_dir"
+          echo "directory=$sdk_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare SDK package tree
+        shell: bash
+        env:
+          SDK_DIR: ${{ steps.sdk.outputs.directory }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$SDK_DIR/package/luci-app-ddns"
+          rsync -a --delete --exclude='.git' "$GITHUB_WORKSPACE/" "$SDK_DIR/package/luci-app-ddns/"
+          cd "$SDK_DIR"
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
+          cat >> .config <<'EOF'
+          CONFIG_PACKAGE_ddns-web=m
+          CONFIG_PACKAGE_luci-app-ddns-web=m
+          EOF
+          make defconfig
+
+      - name: Build IPK packages
+        shell: bash
+        env:
+          SDK_DIR: ${{ steps.sdk.outputs.directory }}
+        run: |
+          set -euo pipefail
+          make -C "$SDK_DIR" package/luci-app-ddns/compile V=s -j"$(nproc)"
+
+      - name: Collect release assets
+        shell: bash
+        env:
+          SDK_DIR: ${{ steps.sdk.outputs.directory }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          TARGET_LABEL: ${{ matrix.label }}
+        run: |
+          set -euo pipefail
+          mkdir release
+          prefix="immortalwrt-24.10.2-${TARGET_LABEL}"
+          count=0
+
+          while IFS= read -r -d '' package; do
+            asset="${prefix}-$(basename "$package")"
+            cp "$package" "release/$asset"
+            count=$((count + 1))
+          done < <(find "$SDK_DIR/bin/packages" -type f -name '*ddns*.ipk' -print0)
+
+          if [ "$count" -lt 2 ]; then
+            echo "Expected ddns-web and luci-app-ddns-web IPKs, found $count" >&2
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-ipk-${{ matrix.label }}
+          path: release/*.ipk
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    needs: [prepare, build-ipk]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+
+      - name: Generate release checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release
+          find . -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.ipk' \) -printf '%f\n' | sort | xargs sha256sum > SHA256SUMS
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          name: Release ${{ needs.prepare.outputs.tag }}
+          body_path: release/RELEASE-NOTES.md
+          generate_release_notes: true
+          prerelease: false
+          files: |
+            release/luci-app-ddns-${{ needs.prepare.outputs.tag }}.tar.gz
+            release/*.ipk
+            release/SHA256SUMS

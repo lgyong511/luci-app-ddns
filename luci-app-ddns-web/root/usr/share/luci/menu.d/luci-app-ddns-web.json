@@ -1,0 +1,13 @@
+{
+	"admin/services/ddns-web": {
+		"title": "DDNS",
+		"order": 60,
+		"action": {
+			"type": "view",
+			"path": "ddns-web"
+		},
+		"depends": {
+			"acl": [ "luci-app-ddns-web" ]
+		}
+	}
+}
