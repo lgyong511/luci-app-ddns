@@ -1,0 +1,10 @@
+--- a/pkg/web/logs.go
++++ b/pkg/web/logs.go
+@@ -82,7 +82,7 @@ func newLogLineView(line string) logLineView {
+ }
+ 
+ func parseLogLevel(line string) string {
+-	for field := range strings.FieldsSeq(line) {
++	for _, field := range strings.Fields(line) {
+ 		key, value, ok := strings.Cut(field, "=")
+ 		if !ok || !strings.EqualFold(key, "level") {
