@@ -27,6 +27,7 @@ jobs:
       package_version: ${{ steps.version.outputs.package_version }}
       package_release: ${{ steps.version.outputs.package_release }}
       source_version: ${{ steps.version.outputs.source_version }}
+      source_ref: ${{ steps.version.outputs.source_ref }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,7 +44,7 @@ jobs:
 
           package_version="$(sed -n 's/^PKG_VERSION:=//p' ddns-web/Makefile)"
           package_release="$(sed -n 's/^PKG_RELEASE:=//p' ddns-web/Makefile)"
-          source_version="$(sed -n 's/^PKG_SOURCE_VERSION:=//p' ddns-web/Makefile)"
+          source_version="$(sed -n 's/^PKG_SOURCE_VERSION:=//p' ddns-web/Makefile | sed 's/[[:space:]]*#.*$//')"
           expected_tag="v${package_version}-${package_release}"
 
           test -n "$package_version"
@@ -60,6 +61,7 @@ jobs:
             echo "package_version=$package_version"
             echo "package_release=$package_release"
             echo "source_version=$source_version"
+            echo "source_ref=$(git rev-parse HEAD)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Create source archive and release notes
@@ -73,28 +75,28 @@ jobs:
           set -euo pipefail
           mkdir release
           archive="luci-app-ddns-${TAG}.tar.gz"
-          git archive --format=tar.gz --prefix="luci-app-ddns-${TAG}/" --output="release/${archive}" "$GITHUB_SHA"
+          git archive --format=tar.gz --prefix="luci-app-ddns-${TAG}/" --output="release/${archive}" HEAD
 
-          cat > release/RELEASE-NOTES.md <<EOF
-          ## 版本信息
-
-          - 软件包版本：`${PACKAGE_VERSION}-${PACKAGE_RELEASE}`
-          - 上游 DDNS 提交：`${SOURCE_VERSION}`
-          - 预编译 SDK：ImmortalWrt 24.10.2
-          - 预编译目标：x86/64、armsr/armv8（ARM64）
-
-          ## 安装预编译 IPK
-
-          下载与设备目标匹配的两个 IPK：`ddns-web` 与 `luci-app-ddns-web`，上传到路由器后执行：
-
-          ```sh
-          opkg install /tmp/*ddns*.ipk
-          ```
-
-          ## 从源码编译
-
-          下载 `${archive}`，解压后将目录放入 ImmortalWrt 源码树的 `package/` 下；随后在 `make menuconfig` 中选择 `LuCI -> Applications -> luci-app-ddns-web` 并编译。
-          EOF
+          printf '%s\n' \
+            '## 版本信息' \
+            '' \
+            "- 软件包版本：\`${PACKAGE_VERSION}-${PACKAGE_RELEASE}\`" \
+            "- 上游 DDNS 提交：\`${SOURCE_VERSION}\`" \
+            '- 预编译 SDK：ImmortalWrt 24.10.2' \
+            '- 预编译目标：x86/64、armsr/armv8（ARM64）' \
+            '' \
+            '## 安装预编译 IPK' \
+            '' \
+            '下载与设备目标匹配的 `ddns-web` IPK，以及通用的 `luci-app-ddns-web` IPK，上传到路由器后执行：' \
+            '' \
+            '```sh' \
+            'opkg install /tmp/ddns-web_*.ipk /tmp/luci-app-ddns-web_*.ipk' \
+            '```' \
+            '' \
+            '## 从源码编译' \
+            '' \
+            "下载 \`${archive}\`，解压后将目录放入 ImmortalWrt 源码树的 \`package/\` 下；随后在 \`make menuconfig\` 中选择 \`LuCI -> Applications -> luci-app-ddns-web\` 并编译。" \
+            > release/RELEASE-NOTES.md
 
       - uses: actions/upload-artifact@v4
         with:
@@ -118,6 +120,8 @@ jobs:
             sdk_url: https://downloads.immortalwrt.org/releases/24.10.2/targets/armsr/armv8/immortalwrt-sdk-24.10.2-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_ref }}
 
       - name: Download and verify ImmortalWrt SDK
         id: sdk
@@ -164,7 +168,8 @@ jobs:
           SDK_DIR: ${{ steps.sdk.outputs.directory }}
         run: |
           set -euo pipefail
-          make -C "$SDK_DIR" package/luci-app-ddns/compile V=s -j"$(nproc)"
+          make -C "$SDK_DIR" package/luci-app-ddns/ddns-web/compile V=s -j"$(nproc)"
+          make -C "$SDK_DIR" package/luci-app-ddns/luci-app-ddns-web/compile V=s -j"$(nproc)"
 
       - name: Collect release assets
         shell: bash
@@ -175,18 +180,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir release
-          prefix="immortalwrt-24.10.2-${TARGET_LABEL}"
-          count=0
+          ddns_package="$(find "$SDK_DIR/bin/packages" -type f -name 'ddns-web_*.ipk' -print -quit)"
+          luci_package="$(find "$SDK_DIR/bin/packages" -type f -name 'luci-app-ddns-web_*.ipk' -print -quit)"
+          test -n "$ddns_package"
+          test -n "$luci_package"
 
-          while IFS= read -r -d '' package; do
-            asset="${prefix}-$(basename "$package")"
-            cp "$package" "release/$asset"
-            count=$((count + 1))
-          done < <(find "$SDK_DIR/bin/packages" -type f -name '*ddns*.ipk' -print0)
+          ddns_arch="$(basename "$ddns_package" | sed -E 's/^ddns-web_[^_]+_(.+)\.ipk$/\1/')"
+          cp "$ddns_package" "release/ddns-web_${TAG}_${ddns_arch}.ipk"
 
-          if [ "$count" -lt 2 ]; then
-            echo "Expected ddns-web and luci-app-ddns-web IPKs, found $count" >&2
-            exit 1
+          if [ "$TARGET_LABEL" = "x86-64" ]; then
+            cp "$luci_package" "release/luci-app-ddns-web_${TAG}_all.ipk"
           fi
 
       - uses: actions/upload-artifact@v4
@@ -214,6 +217,18 @@ jobs:
           set -euo pipefail
           cd release
           find . -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.ipk' \) -printf '%f\n' | sort | xargs sha256sum > SHA256SUMS
+
+      - name: Remove previous manual-release assets
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes
+          fi
 
       - uses: softprops/action-gh-release@v2
         with:
