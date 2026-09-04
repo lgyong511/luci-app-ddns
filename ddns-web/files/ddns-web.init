@@ -5,11 +5,18 @@ START=95
 STOP=10
 
 start_service() {
-	local enabled
+	local enabled port
 
 	config_load ddns-web
 	config_get_bool enabled main enabled 0
 	[ "$enabled" = "1" ] || return 0
+	config_get port main port 8686
+	case "$port" in
+		''|0|0[0-9]*|*[!0-9]*) port=8686 ;;
+		*)
+			[ "$port" -ge 1 ] 2>/dev/null && [ "$port" -le 65535 ] 2>/dev/null || port=8686
+			;;
+	esac
 
 	[ -f /etc/ddns/config.yaml ] || {
 		mkdir -p /etc/ddns
@@ -18,7 +25,7 @@ start_service() {
 	}
 
 	procd_open_instance
-	procd_set_param command /usr/bin/ddns -web -c /etc/ddns/config.yaml -p 8686
+	procd_set_param command /usr/bin/ddns -web -c /etc/ddns/config.yaml -p "$port"
 	procd_set_param respawn 3600 5 5
 	procd_set_param file /etc/config/ddns-web /etc/ddns/config.yaml
 	procd_set_param stdout 1

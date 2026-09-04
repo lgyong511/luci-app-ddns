@@ -87,10 +87,10 @@ jobs:
             '' \
             '## 安装预编译 IPK' \
             '' \
-            '下载与设备目标匹配的 `ddns-web` IPK，以及通用的 `luci-app-ddns-web` IPK，上传到路由器后执行：' \
+            '下载与设备目标匹配的 `ddns-web` IPK、通用的 `luci-app-ddns-web` IPK，以及系统语言对应的 `luci-i18n-ddns-web-*` IPK，上传到路由器后执行：' \
             '' \
             '```sh' \
-            'opkg install /tmp/ddns-web_*.ipk /tmp/luci-app-ddns-web_*.ipk' \
+            'opkg install /tmp/ddns-web_*.ipk /tmp/luci-app-ddns-web_*.ipk /tmp/luci-i18n-ddns-web-*.ipk' \
             '```' \
             '' \
             '## 从源码编译' \
@@ -159,6 +159,8 @@ jobs:
           cat >> .config <<'EOF'
           CONFIG_PACKAGE_ddns-web=m
           CONFIG_PACKAGE_luci-app-ddns-web=m
+          CONFIG_PACKAGE_luci-i18n-ddns-web-zh-cn=m
+          CONFIG_PACKAGE_luci-i18n-ddns-web-zh-tw=m
           EOF
           make defconfig
 
@@ -190,6 +192,14 @@ jobs:
 
           if [ "$TARGET_LABEL" = "x86-64" ]; then
             cp "$luci_package" "release/luci-app-ddns-web_${TAG}_all.ipk"
+            translation_found=0
+            while IFS= read -r translation_package; do
+              translation_found=1
+              translation_name="$(basename "$translation_package" | sed -E 's/^(.+)_([^_]+)_all\.ipk$/\1/')"
+              cp "$translation_package" "release/${translation_name}_${TAG}_all.ipk"
+            done < <(find "$SDK_DIR/bin/packages" -type f \
+              \( -name 'luci-i18n-ddns-web-*.ipk' -o -name 'luci-i18n-luci-app-ddns-web-*.ipk' \) -print)
+            test "$translation_found" -eq 1
           fi
 
       - uses: actions/upload-artifact@v4

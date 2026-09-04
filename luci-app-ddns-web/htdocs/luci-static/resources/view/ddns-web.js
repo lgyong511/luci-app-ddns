@@ -3,7 +3,6 @@
 'require form';
 'require poll';
 'require rpc';
-'require ui';
 'require uci';
 
 var callServiceList = rpc.declare({
@@ -12,19 +11,6 @@ var callServiceList = rpc.declare({
 	params: [ 'name' ],
 	expect: { '': {} }
 });
-
-var callServiceAction = rpc.declare({
-	object: 'service',
-	method: 'action',
-	params: [ 'name', 'action' ],
-	expect: { '': {} }
-});
-
-var actionLabels = {
-	start: _('Start'),
-	stop: _('Stop'),
-	restart: _('Restart')
-};
 
 function serviceRunning(data) {
 	var instances = data && data['ddns-web'] && data['ddns-web'].instances;
@@ -43,51 +29,40 @@ return view.extend({
 			_('Control the DDNS service here. Providers, records, notifications, logs and Web accounts are configured in the DDNS Web console.'));
 		var section = map.section(form.NamedSection, 'main', 'ddns-web', _('Service settings'));
 		var enabled = section.option(form.Flag, 'enabled', _('Enable'));
+		var port = section.option(form.Value, 'port', _('Web port'));
 		var statusText = E('span', { 'class': 'label' });
-		var actionButtons = E('div', { 'class': 'cbi-value-field', 'style': 'display:flex;gap:.5em;flex-wrap:wrap' });
 		var openButton = E('a', {
 			'class': 'btn cbi-button cbi-button-action',
 			'target': '_blank',
 			'rel': 'noreferrer noopener',
-			href: 'http://' + window.location.hostname + ':8686/'
+			href: '#'
 		}, _('Open Web console'));
 
 		enabled.default = '0';
 		enabled.rmempty = false;
+		port.datatype = 'port';
+		port.default = '8686';
+		port.placeholder = '8686';
+		port.rmempty = true;
 		var statusBox = E('div', { 'class': 'cbi-section' }, [
 			E('h3', {}, _('Running status')),
 			E('div', { 'style': 'display:flex;align-items:center;gap:1em;flex-wrap:wrap' }, [ statusText, openButton ]),
-			E('p', { 'class': 'description' }, _('The DDNS console listens on port 8686. It accepts loopback and RFC1918 private IPv4 clients.')),
-			E('div', { 'style': 'display:flex;align-items:center;gap:1em;flex-wrap:wrap' }, [
-				E('strong', {}, _('Service actions')),
-				actionButtons
-			])
+			E('p', { 'class': 'description' }, _('The DDNS console listens on the configured port. It accepts loopback and RFC1918 private IPv4 clients.'))
 		]);
+
+		function configuredPort() {
+			var value = uci.get('ddns-web', 'main', 'port') || '8686';
+			return /^(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$/.test(value) ? value : '8686';
+		}
 
 		function updateStatus(serviceData) {
 			var running = !!serviceRunning(serviceData);
+			var servicePort = configuredPort();
 			statusText.className = running ? 'label success' : 'label warning';
 			statusText.textContent = running ? _('DDNS is running') : _('DDNS is not running');
+			openButton.href = 'http://' + window.location.hostname + ':' + servicePort + '/';
 			openButton.style.display = running && window.location.hostname ? '' : 'none';
 		}
-
-		[ 'start', 'stop', 'restart' ].forEach(function(action) {
-			var button = E('button', {
-				'class': 'btn cbi-button',
-				'type': 'button',
-				'click': function() {
-					button.disabled = true;
-					return callServiceAction('ddns-web', action).then(function() {
-						return callServiceList('ddns-web');
-					}).then(updateStatus).finally(function() {
-						button.disabled = false;
-					}).catch(function(error) {
-						ui.addNotification(null, E('p', {}, error.message || _('The service action failed.')), 'error');
-					});
-				}
-			}, actionLabels[action]);
-			actionButtons.appendChild(button);
-		});
 
 		updateStatus(data[1]);
 		poll.add(function() { return callServiceList('ddns-web').then(updateStatus); });

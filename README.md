@@ -3,9 +3,9 @@
 本仓库提供 ImmortalWrt 24.10.x 可用的 DDNS 软件包：
 
 - `ddns-web`：DDNS 核心程序、procd 服务脚本和默认配置。
-- `luci-app-ddns-web`：LuCI“服务”页面，只负责启停、状态和打开 DDNS Web 控制台。
+- `luci-app-ddns-web`：LuCI“服务”页面，只负责显示状态、开机启用和打开 DDNS Web 控制台。
 
-Provider、Record、Webhook、日志及 Web 账号请在 DDNS 自带 Web 页面配置。默认地址为 `http://路由器地址:8686/`。
+Provider、Record、Webhook、日志及 Web 账号请在 DDNS 自带 Web 页面配置。默认地址为 `http://路由器地址:8686/`，可在 LuCI 页面修改 Web 端口；留空时使用 `8686`。
 
 ## 放入 ImmortalWrt
 
@@ -25,7 +25,9 @@ make package/ddns-web/compile V=s
 make package/luci-app-ddns-web/compile V=s
 ```
 
-首次安装后，在 LuCI 的“服务 -> DDNS”中勾选“启用”并先保存，再使用“启动”按钮。DDNS 首次打开 Web 控制台时会引导创建账号。停止、重启和启动按钮调用系统的 `service.action` 接口；如果服务未启用，启动操作会按系统配置保持停止状态。
+首次安装后，在 LuCI 的“服务 -> DDNS”中勾选“启用”并保存。可在同一页面修改 Web 端口，保存后服务会自动重载；留空或输入非法端口时回退到 `8686`。服务由系统的 procd 在开机时自动启动；DDNS 首次打开 Web 控制台时会引导创建账号。
+
+LuCI 翻译由独立的 `luci-i18n-ddns-web-<语言>` 软件包提供。使用中文固件时请同时安装 Release 中的 `luci-i18n-ddns-web-zh-cn`；系统语言为其他已提供翻译时会自动加载对应语言，未提供翻译则显示英文。
 
 ## 发布与升级
 
@@ -35,10 +37,10 @@ make package/luci-app-ddns-web/compile V=s
 
 每个 Release 包含可放入 ImmortalWrt 源码树自行编译的源码归档、SHA256 校验文件，以及使用 ImmortalWrt 24.10.2 SDK 为 x86_64 和 ARM64（`armsr/armv8`）编译的 IPK。
 
-安装预编译版本时，下载匹配设备架构的 `ddns-web_<tag>_<arch>.ipk`，以及通用的 `luci-app-ddns-web_<tag>_all.ipk`，上传到路由器后执行：
+安装预编译版本时，下载匹配设备架构的 `ddns-web_<tag>_<arch>.ipk`、通用的 `luci-app-ddns-web_<tag>_all.ipk`，以及系统语言对应的 `luci-i18n-ddns-web-*.ipk`，上传到路由器后执行：
 
 ```sh
-opkg install /tmp/ddns-web_*.ipk /tmp/luci-app-ddns-web_*.ipk
+opkg install /tmp/ddns-web_*.ipk /tmp/luci-app-ddns-web_*.ipk /tmp/luci-i18n-ddns-web-*.ipk
 ```
 
 上游 DDNS 发布新 tag 后，更新 `ddns-web/Makefile` 中的 `PKG_VERSION`、对应 tag 的提交 SHA（`PKG_SOURCE_VERSION`）与兼容补丁；验证 SDK 编译后将 `PKG_RELEASE` 设为 `1`。仅修改本仓库的 LuCI、服务脚本或打包文件时，保持上游版本和提交不变，仅递增 `PKG_RELEASE`。

@@ -1,14 +1,9 @@
 {
 	"luci-app-ddns-web": {
-		"description": "DDNS LuCI service controls",
+		"description": "DDNS LuCI status",
 		"read": {
 			"ubus": {
 				"service": [ "list" ]
-			}
-		},
-		"write": {
-			"ubus": {
-				"service": [ "action" ]
 			}
 		}
 	}

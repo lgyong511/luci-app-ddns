@@ -1,5 +1,5 @@
 msgid ""
-msgstr "Content-Type: text/plain; charset=UTF-8\n"
+msgstr "Content-Type: text/plain; charset=UTF-8\nLanguage: zh_TW\nPlural-Forms: nplurals=1; plural=0;\n"
 
 msgid "DDNS"
 msgstr "DDNS"
@@ -13,26 +13,17 @@ msgstr "服務設定"
 msgid "Enable"
 msgstr "啟用"
 
+msgid "Web port"
+msgstr "Web 連接埠"
+
 msgid "Running status"
 msgstr "運行狀態"
 
 msgid "Open Web console"
 msgstr "開啟 Web 管理"
 
-msgid "The DDNS console listens on port 8686. It accepts loopback and RFC1918 private IPv4 clients."
-msgstr "DDNS 控制台監聽 8686 連接埠，僅接受本機和 RFC1918 私有 IPv4 用戶端。"
-
-msgid "Service actions"
-msgstr "服務操作"
-
-msgid "Start"
-msgstr "啟動"
-
-msgid "Stop"
-msgstr "停止"
-
-msgid "Restart"
-msgstr "重新啟動"
+msgid "The DDNS console listens on the configured port. It accepts loopback and RFC1918 private IPv4 clients."
+msgstr "DDNS 控制台監聽設定的連接埠，僅接受本機和 RFC1918 私有 IPv4 用戶端。"
 
 msgid "DDNS is running"
 msgstr "DDNS 運行中"

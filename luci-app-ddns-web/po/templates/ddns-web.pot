@@ -1,54 +1,42 @@
 msgid ""
 msgstr "Content-Type: text/plain; charset=UTF-8\n"
 
-#: htdocs/luci-static/resources/view/ddns-web.js:42
+#: htdocs/luci-static/resources/view/ddns-web.js:28
 msgid "DDNS"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/ddns-web.js:43
+#: htdocs/luci-static/resources/view/ddns-web.js:29
 msgid "Control the DDNS service here. Providers, records, notifications, logs and Web accounts are configured in the DDNS Web console."
 msgstr ""
 
-#: htdocs/luci-static/resources/view/ddns-web.js:44
+#: htdocs/luci-static/resources/view/ddns-web.js:30
 msgid "Service settings"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/ddns-web.js:45
+#: htdocs/luci-static/resources/view/ddns-web.js:31
 msgid "Enable"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/ddns-web.js:53
+#: htdocs/luci-static/resources/view/ddns-web.js:32
+msgid "Web port"
+msgstr ""
+
+#: htdocs/luci-static/resources/view/ddns-web.js:44
 msgid "Open Web console"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/ddns-web.js:58
+#: htdocs/luci-static/resources/view/ddns-web.js:49
 msgid "Running status"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/ddns-web.js:60
-msgid "The DDNS console listens on port 8686. It accepts loopback and RFC1918 private IPv4 clients."
+#: htdocs/luci-static/resources/view/ddns-web.js:51
+msgid "The DDNS console listens on the configured port. It accepts loopback and RFC1918 private IPv4 clients."
 msgstr ""
 
-#: htdocs/luci-static/resources/view/ddns-web.js:62
-msgid "Service actions"
-msgstr ""
-
-#: htdocs/luci-static/resources/view/ddns-web.js:25
-msgid "Start"
-msgstr ""
-
-#: htdocs/luci-static/resources/view/ddns-web.js:26
-msgid "Stop"
-msgstr ""
-
-#: htdocs/luci-static/resources/view/ddns-web.js:27
-msgid "Restart"
-msgstr ""
-
-#: htdocs/luci-static/resources/view/ddns-web.js:70
+#: htdocs/luci-static/resources/view/ddns-web.js:63
 msgid "DDNS is running"
 msgstr ""
 
-#: htdocs/luci-static/resources/view/ddns-web.js:70
+#: htdocs/luci-static/resources/view/ddns-web.js:63
 msgid "DDNS is not running"
 msgstr ""
