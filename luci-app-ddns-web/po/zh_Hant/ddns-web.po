@@ -22,6 +22,9 @@ msgstr "運行狀態"
 msgid "Open Web console"
 msgstr "開啟 Web 管理"
 
+msgid "DDNS failed to start. The configured Web port may already be in use."
+msgstr "DDNS 啟動失敗，設定的 Web 連接埠可能已被佔用。"
+
 msgid "The DDNS console listens on the configured port. It accepts loopback and RFC1918 private IPv4 clients."
 msgstr "DDNS 控制台監聽設定的連接埠，僅接受本機和 RFC1918 私有 IPv4 用戶端。"
 

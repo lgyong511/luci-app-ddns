@@ -29,6 +29,10 @@ msgstr ""
 msgid "Running status"
 msgstr ""
 
+#: htdocs/luci-static/resources/view/ddns-web.js:34
+msgid "DDNS failed to start. The configured Web port may already be in use."
+msgstr ""
+
 #: htdocs/luci-static/resources/view/ddns-web.js:51
 msgid "The DDNS console listens on the configured port. It accepts loopback and RFC1918 private IPv4 clients."
 msgstr ""

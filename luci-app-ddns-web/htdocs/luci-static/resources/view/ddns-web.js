@@ -31,6 +31,8 @@ return view.extend({
 		var enabled = section.option(form.Flag, 'enabled', _('Enable'));
 		var port = section.option(form.Value, 'port', _('Web port'));
 		var statusText = E('span', { 'class': 'label' });
+		var errorText = E('p', { 'class': 'alert-message error', 'style': 'display:none' },
+			_('DDNS failed to start. The configured Web port may already be in use.'));
 		var openButton = E('a', {
 			'class': 'btn cbi-button cbi-button-action',
 			'target': '_blank',
@@ -47,6 +49,7 @@ return view.extend({
 		var statusBox = E('div', { 'class': 'cbi-section' }, [
 			E('h3', {}, _('Running status')),
 			E('div', { 'style': 'display:flex;align-items:center;gap:1em;flex-wrap:wrap' }, [ statusText, openButton ]),
+			errorText,
 			E('p', { 'class': 'description' }, _('The DDNS console listens on the configured port. It accepts loopback and RFC1918 private IPv4 clients.'))
 		]);
 
@@ -60,6 +63,7 @@ return view.extend({
 			var servicePort = configuredPort();
 			statusText.className = running ? 'label success' : 'label warning';
 			statusText.textContent = running ? _('DDNS is running') : _('DDNS is not running');
+			errorText.style.display = !running && uci.get('ddns-web', 'main', 'enabled') === '1' ? '' : 'none';
 			openButton.href = 'http://' + window.location.hostname + ':' + servicePort + '/';
 			openButton.style.display = running && window.location.hostname ? '' : 'none';
 		}
