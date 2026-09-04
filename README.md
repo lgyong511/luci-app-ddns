@@ -25,7 +25,7 @@ make package/ddns-web/compile V=s
 make package/luci-app-ddns-web/compile V=s
 ```
 
-首次安装后，在 LuCI 的“服务 -> DDNS”中启用服务并启动。DDNS 首次打开 Web 控制台时会引导创建账号。
+首次安装后，在 LuCI 的“服务 -> DDNS”中勾选“启用”并先保存，再使用“启动”按钮。DDNS 首次打开 Web 控制台时会引导创建账号。停止、重启和启动按钮调用系统的 `service.action` 接口；如果服务未启用，启动操作会按系统配置保持停止状态。
 
 ## 发布与升级
 

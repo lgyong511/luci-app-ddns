@@ -3,6 +3,7 @@
 'require form';
 'require poll';
 'require rpc';
+'require ui';
 'require uci';
 
 var callServiceList = rpc.declare({
@@ -12,14 +13,18 @@ var callServiceList = rpc.declare({
 	expect: { '': {} }
 });
 
-var callAction = {};
-[ 'start', 'stop', 'restart' ].forEach(function(action) {
-	callAction[action] = rpc.declare({
-		object: 'luci.ddns_web',
-		method: action,
-		expect: { '': {} }
-	});
+var callServiceAction = rpc.declare({
+	object: 'service',
+	method: 'action',
+	params: [ 'name', 'action' ],
+	expect: { '': {} }
 });
+
+var actionLabels = {
+	start: _('Start'),
+	stop: _('Stop'),
+	restart: _('Restart')
+};
 
 function serviceRunning(data) {
 	var instances = data && data['ddns-web'] && data['ddns-web'].instances;
@@ -67,14 +72,20 @@ return view.extend({
 		}
 
 		[ 'start', 'stop', 'restart' ].forEach(function(action) {
-			var button = E('button', { 'class': 'btn cbi-button', 'click': function() {
-				button.disabled = true;
-				return callAction[action]().then(function() {
-					return callServiceList('ddns-web');
-				}).then(updateStatus).finally(function() {
-					button.disabled = false;
-				});
-			}}, _(action.charAt(0).toUpperCase() + action.slice(1)));
+			var button = E('button', {
+				'class': 'btn cbi-button',
+				'type': 'button',
+				'click': function() {
+					button.disabled = true;
+					return callServiceAction('ddns-web', action).then(function() {
+						return callServiceList('ddns-web');
+					}).then(updateStatus).finally(function() {
+						button.disabled = false;
+					}).catch(function(error) {
+						ui.addNotification(null, E('p', {}, error.message || _('The service action failed.')), 'error');
+					});
+				}
+			}, actionLabels[action]);
 			actionButtons.appendChild(button);
 		});
 

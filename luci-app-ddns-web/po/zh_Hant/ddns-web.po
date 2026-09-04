@@ -3,29 +3,39 @@ msgstr "Content-Type: text/plain; charset=UTF-8\n"
 
 msgid "DDNS"
 msgstr "DDNS"
+
 msgid "Control the DDNS service here. Providers, records, notifications, logs and Web accounts are configured in the DDNS Web console."
-msgstr "在此控制 DDNS 服务。服务商、解析记录、通知、日志和 Web 账号请在 DDNS Web 控制台中配置。"
+msgstr "在此控制 DDNS 服務。服務商、解析記錄、通知、日誌和 Web 帳號請在 DDNS Web 控制台中設定。"
+
 msgid "Service settings"
-msgstr "服务设置"
+msgstr "服務設定"
+
 msgid "Enable"
-msgstr "启用"
+msgstr "啟用"
+
 msgid "Running status"
-msgstr "运行状态"
+msgstr "運行狀態"
+
 msgid "Open Web console"
-msgstr "打开 Web 管理"
+msgstr "開啟 Web 管理"
+
 msgid "The DDNS console listens on port 8686. It accepts loopback and RFC1918 private IPv4 clients."
-msgstr "DDNS 控制台监听 8686 端口，仅接受本机和 RFC1918 私有 IPv4 客户端。"
+msgstr "DDNS 控制台監聽 8686 連接埠，僅接受本機和 RFC1918 私有 IPv4 用戶端。"
+
 msgid "Service actions"
-msgstr "服务操作"
+msgstr "服務操作"
+
 msgid "Start"
-msgstr "启动"
+msgstr "啟動"
+
 msgid "Stop"
 msgstr "停止"
+
 msgid "Restart"
-msgstr "重启"
+msgstr "重新啟動"
+
 msgid "DDNS is running"
-msgstr "DDNS 运行中"
+msgstr "DDNS 運行中"
+
 msgid "DDNS is not running"
-msgstr "DDNS 未运行"
-msgid "The service action failed."
-msgstr "服务操作失败。"
+msgstr "DDNS 未運行"

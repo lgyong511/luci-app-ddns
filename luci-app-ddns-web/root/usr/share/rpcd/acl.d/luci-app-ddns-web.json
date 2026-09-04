@@ -8,7 +8,7 @@
 		},
 		"write": {
 			"ubus": {
-				"luci.ddns_web": [ "start", "stop", "restart" ]
+				"service": [ "action" ]
 			}
 		}
 	}
