@@ -37,10 +37,11 @@ LuCI 翻译由独立的 `luci-i18n-ddns-web-<语言>` 软件包提供。使用�
 
 每个 Release 包含可放入 ImmortalWrt 源码树自行编译的源码归档、SHA256 校验文件，以及使用 ImmortalWrt 24.10.2 SDK 为 x86_64 和 ARM64（`armsr/armv8`）编译的 IPK。
 
-安装预编译版本时，下载匹配设备架构的 `ddns-web_<tag>_<arch>.ipk`、通用的 `luci-app-ddns-web_<tag>_all.ipk`，以及系统语言对应的 `luci-i18n-ddns-web-*.ipk`，上传到路由器后执行：
+安装预编译版本时，下载匹配设备架构的 `ddns-web_<tag>_<arch>.ipk`、通用的 `luci-app-ddns-web_<tag>_all.ipk`，以及系统语言对应的 `luci-i18n-ddns-web-*.ipk`。必须先安装主程序和 LuCI 主包，再安装翻译包；翻译包单独安装会因依赖缺失而失败。
 
 ```sh
-opkg install /tmp/ddns-web_*.ipk /tmp/luci-app-ddns-web_*.ipk /tmp/luci-i18n-ddns-web-*.ipk
+opkg install /tmp/ddns-web_*.ipk /tmp/luci-app-ddns-web_*.ipk
+opkg install /tmp/luci-i18n-ddns-web-*.ipk
 ```
 
 上游 DDNS 发布新 tag 后，更新 `ddns-web/Makefile` 中的 `PKG_VERSION`、对应 tag 的提交 SHA（`PKG_SOURCE_VERSION`）与兼容补丁；验证 SDK 编译后将 `PKG_RELEASE` 设为 `1`。仅修改本仓库的 LuCI、服务脚本或打包文件时，保持上游版本和提交不变，仅递增 `PKG_RELEASE`。

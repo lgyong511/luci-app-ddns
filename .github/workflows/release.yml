@@ -87,10 +87,11 @@ jobs:
             '' \
             '## 安装预编译 IPK' \
             '' \
-            '下载与设备目标匹配的 `ddns-web` IPK、通用的 `luci-app-ddns-web` IPK，以及系统语言对应的 `luci-i18n-ddns-web-*` IPK，上传到路由器后执行：' \
+            '下载与设备目标匹配的 `ddns-web` IPK、通用的 `luci-app-ddns-web` IPK，以及系统语言对应的 `luci-i18n-ddns-web-*` IPK；请先安装主程序和 LuCI 主包，再安装翻译包：' \
             '' \
             '```sh' \
-            'opkg install /tmp/ddns-web_*.ipk /tmp/luci-app-ddns-web_*.ipk /tmp/luci-i18n-ddns-web-*.ipk' \
+            'opkg install /tmp/ddns-web_*.ipk /tmp/luci-app-ddns-web_*.ipk' \
+            'opkg install /tmp/luci-i18n-ddns-web-*.ipk' \
             '```' \
             '' \
             '## 从源码编译' \
