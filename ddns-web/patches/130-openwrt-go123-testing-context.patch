@@ -1,0 +1,33 @@
+--- a/pkg/provider/response_test.go
++++ b/pkg/provider/response_test.go
+@@ -60,7 +60,7 @@ func TestErrorSummaryTruncatesBusinessErrorMessage(t *testing.T) {
+ }
+ 
+ func TestRateLimitedTransportHonorsCanceledContext(t *testing.T) {
+-	ctx, cancel := context.WithCancel(t.Context())
++	ctx, cancel := context.WithCancel(context.Background())
+ 	cancel()
+ 	transport := &rateLimitedTransport{limiter: rate.NewLimiter(1, 0), base: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+ 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("ok"))}, nil
+--- a/pkg/web/config_events_test.go
++++ b/pkg/web/config_events_test.go
+@@ -211,7 +211,7 @@ func TestConfigStreamSendsEventsAndHeartbeat(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	ctx, cancel := context.WithCancel(t.Context())
++	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+ 	request := httptest.NewRequest(http.MethodGet, "/config/stream", nil).WithContext(ctx)
+ 	request.AddCookie(&http.Cookie{Name: sessionCookie, Value: token})
+--- a/pkg/web/logs_test.go
++++ b/pkg/web/logs_test.go
+@@ -113,7 +113,7 @@ func TestLogsStreamSendsJSONAndStopsOnCancel(t *testing.T) {
+ func TestLogsStreamSendsJSONAndStopsOnCancel(t *testing.T) {
+ 	buffer := ddnslog.NewBuffer(300)
+ 	server := newLogsTestServer(t, buffer)
+-	ctx, cancel := context.WithCancel(t.Context())
++	ctx, cancel := context.WithCancel(context.Background())
+ 	request := httptest.NewRequest(http.MethodGet, "/logs/stream", nil).WithContext(ctx)
+ 	response := newStreamingRecorder()
+ 	done := make(chan struct{})
