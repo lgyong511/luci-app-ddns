@@ -3,11 +3,11 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to build, for example v1.6.11-1
+        description: Existing release tag to build, for example v1.6.12-2
         required: true
         type: string
 
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   prepare:
     name: Validate release metadata
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       package_version: ${{ steps.version.outputs.package_version }}
@@ -29,7 +29,7 @@ jobs:
       source_version: ${{ steps.version.outputs.source_version }}
       source_ref: ${{ steps.version.outputs.source_ref }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
@@ -82,10 +82,10 @@ jobs:
             '' \
             "- 软件包版本：\`${PACKAGE_VERSION}-${PACKAGE_RELEASE}\`" \
             "- 上游 DDNS 提交：\`${SOURCE_VERSION}\`" \
-            '- 预编译 SDK：ImmortalWrt 24.10.2' \
+            '- 预编译 SDK：ImmortalWrt 24.10.2（IPK）、25.12.2（APK）' \
             '- 预编译目标：x86/64、armsr/armv8（ARM64）' \
             '' \
-            '## 安装预编译 IPK' \
+            '## ImmortalWrt 24.10.x 安装 IPK' \
             '' \
             '下载与设备目标匹配的 `ddns-web` IPK、通用的 `luci-app-ddns-web` IPK，以及系统语言对应的 `luci-i18n-ddns-web-*` IPK；请先安装主程序和 LuCI 主包，再安装翻译包：' \
             '' \
@@ -94,35 +94,83 @@ jobs:
             'opkg install /tmp/luci-i18n-ddns-web-*.ipk' \
             '```' \
             '' \
+            '## ImmortalWrt 25.12.x 安装 APK' \
+            '' \
+            '下载与设备目标匹配的 `ddns-web` APK、通用的 `luci-app-ddns-web` APK，以及系统语言对应的翻译 APK，然后执行：' \
+            '' \
+            '```sh' \
+            'apk add --allow-untrusted /tmp/*ddns-web*.apk' \
+            '```' \
+            '' \
             '## 从源码编译' \
             '' \
             "下载 \`${archive}\`，解压后将目录放入 ImmortalWrt 源码树的 \`package/\` 下；随后在 \`make menuconfig\` 中选择 \`LuCI -> Applications -> luci-app-ddns-web\` 并编译。" \
             > release/RELEASE-NOTES.md
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: release-source
           path: release/
           if-no-files-found: error
 
-  build-ipk:
-    name: Build ${{ matrix.label }} IPK
+  build-packages:
+    name: Build ${{ matrix.release }} ${{ matrix.label }} ${{ matrix.format }}
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - label: x86-64
+          - release: 24.10.2
+            format: ipk
+            label: x86-64
             target: x86/64
+            common_assets: true
             sdk_url: https://downloads.immortalwrt.org/releases/24.10.2/targets/x86/64/immortalwrt-sdk-24.10.2-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst
-          - label: armsr-armv8
+          - release: 24.10.2
+            format: ipk
+            label: armsr-armv8
             target: armsr/armv8
+            common_assets: false
             sdk_url: https://downloads.immortalwrt.org/releases/24.10.2/targets/armsr/armv8/immortalwrt-sdk-24.10.2-armsr-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst
+          - release: 25.12.2
+            format: apk
+            label: x86-64
+            target: x86/64
+            common_assets: true
+            sdk_url: https://downloads.immortalwrt.org/releases/25.12.2/targets/x86/64/immortalwrt-sdk-25.12.2-x86-64_gcc-14.3.0_musl.Linux-x86_64.tar.zst
+          - release: 25.12.2
+            format: apk
+            label: armsr-armv8
+            target: armsr/armv8
+            common_assets: false
+            sdk_url: https://downloads.immortalwrt.org/releases/25.12.2/targets/armsr/armv8/immortalwrt-sdk-25.12.2-armsr-armv8_gcc-14.3.0_musl.Linux-x86_64.tar.zst
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ needs.prepare.outputs.source_ref }}
+
+      - name: Install SDK build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            coreutils \
+            file \
+            gawk \
+            gettext \
+            libncurses-dev \
+            libssl-dev \
+            python3 \
+            rsync \
+            unzip \
+            zlib1g-dev \
+            zstd
+
+          /usr/bin/install --version | grep -F 'GNU coreutils'
+          echo '/usr/bin' >> "$GITHUB_PATH"
 
       - name: Download and verify ImmortalWrt SDK
         id: sdk
@@ -152,6 +200,9 @@ jobs:
           SDK_DIR: ${{ steps.sdk.outputs.directory }}
         run: |
           set -euo pipefail
+          export PATH="/usr/bin:/bin:$PATH"
+          test "$(command -v install)" = '/usr/bin/install'
+          install --version | grep -F 'GNU coreutils'
           mkdir -p "$SDK_DIR/package/luci-app-ddns"
           rsync -a --delete --exclude='.git' "$GITHUB_WORKSPACE/" "$SDK_DIR/package/luci-app-ddns/"
           cd "$SDK_DIR"
@@ -165,12 +216,13 @@ jobs:
           EOF
           make defconfig
 
-      - name: Build IPK packages
+      - name: Build packages
         shell: bash
         env:
           SDK_DIR: ${{ steps.sdk.outputs.directory }}
         run: |
           set -euo pipefail
+          export PATH="/usr/bin:/bin:$PATH"
           make -C "$SDK_DIR" package/luci-app-ddns/ddns-web/compile V=s -j"$(nproc)"
           make -C "$SDK_DIR" package/luci-app-ddns/luci-app-ddns-web/compile V=s -j"$(nproc)"
 
@@ -180,43 +232,54 @@ jobs:
           SDK_DIR: ${{ steps.sdk.outputs.directory }}
           TAG: ${{ needs.prepare.outputs.tag }}
           TARGET_LABEL: ${{ matrix.label }}
+          IMMORTALWRT_RELEASE: ${{ matrix.release }}
+          PACKAGE_FORMAT: ${{ matrix.format }}
+          COMMON_ASSETS: ${{ matrix.common_assets }}
         run: |
           set -euo pipefail
           mkdir release
-          ddns_package="$(find "$SDK_DIR/bin/packages" -type f -name 'ddns-web_*.ipk' -print -quit)"
-          luci_package="$(find "$SDK_DIR/bin/packages" -type f -name 'luci-app-ddns-web_*.ipk' -print -quit)"
+          if [ "$PACKAGE_FORMAT" = "ipk" ]; then
+            ddns_pattern='ddns-web_*.ipk'
+            luci_pattern='luci-app-ddns-web_*.ipk'
+            translation_pattern='luci-i18n-ddns-web-*.ipk'
+          else
+            ddns_pattern='ddns-web-*.apk'
+            luci_pattern='luci-app-ddns-web-*.apk'
+            translation_pattern='luci-i18n-ddns-web-*.apk'
+          fi
+
+          ddns_package="$(find "$SDK_DIR/bin/packages" -type f -name "$ddns_pattern" -print -quit)"
+          luci_package="$(find "$SDK_DIR/bin/packages" -type f -name "$luci_pattern" -print -quit)"
           test -n "$ddns_package"
           test -n "$luci_package"
 
-          ddns_arch="$(basename "$ddns_package" | sed -E 's/^ddns-web_[^_]+_(.+)\.ipk$/\1/')"
-          cp "$ddns_package" "release/ddns-web_${TAG}_${ddns_arch}.ipk"
+          asset_prefix="immortalwrt-${IMMORTALWRT_RELEASE}-${TARGET_LABEL}"
+          cp "$ddns_package" "release/${asset_prefix}_$(basename "$ddns_package")"
 
-          if [ "$TARGET_LABEL" = "x86-64" ]; then
-            cp "$luci_package" "release/luci-app-ddns-web_${TAG}_all.ipk"
+          if [ "$COMMON_ASSETS" = "true" ]; then
+            cp "$luci_package" "release/immortalwrt-${IMMORTALWRT_RELEASE}_$(basename "$luci_package")"
             translation_found=0
             while IFS= read -r translation_package; do
               translation_found=1
-              translation_name="$(basename "$translation_package" | sed -E 's/^(.+)_([^_]+)_all\.ipk$/\1/')"
-              cp "$translation_package" "release/${translation_name}_${TAG}_all.ipk"
-            done < <(find "$SDK_DIR/bin/packages" -type f \
-              \( -name 'luci-i18n-ddns-web-*.ipk' -o -name 'luci-i18n-luci-app-ddns-web-*.ipk' \) -print)
+              cp "$translation_package" "release/immortalwrt-${IMMORTALWRT_RELEASE}_$(basename "$translation_package")"
+            done < <(find "$SDK_DIR/bin/packages" -type f -name "$translation_pattern" -print)
             test "$translation_found" -eq 1
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
-          name: release-ipk-${{ matrix.label }}
-          path: release/*.ipk
+          name: release-package-${{ matrix.release }}-${{ matrix.label }}
+          path: release/*.${{ matrix.format }}
           if-no-files-found: error
 
   release:
     name: Publish GitHub Release
-    needs: [prepare, build-ipk]
-    runs-on: ubuntu-latest
+    needs: [prepare, build-packages]
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           pattern: release-*
           path: release
@@ -227,7 +290,7 @@ jobs:
         run: |
           set -euo pipefail
           cd release
-          find . -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.ipk' \) -printf '%f\n' | sort | xargs sha256sum > SHA256SUMS
+          find . -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.ipk' -o -name '*.apk' \) -printf '%f\n' | sort | xargs sha256sum > SHA256SUMS
 
       - name: Remove previous manual-release assets
         if: github.event_name == 'workflow_dispatch'
@@ -251,4 +314,5 @@ jobs:
           files: |
             release/luci-app-ddns-${{ needs.prepare.outputs.tag }}.tar.gz
             release/*.ipk
+            release/*.apk
             release/SHA256SUMS
